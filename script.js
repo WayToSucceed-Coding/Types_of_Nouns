@@ -23,14 +23,10 @@ function showScreen(screenName) {
     initGame();
     // Start background music only when entering game screen
     if (!isMuted) {
-      audio.background.pause();
       audio.background.currentTime = 0;
-      // Add a slight delay before playing
-      setTimeout(() => {
-        audio.background.play().catch(error => {
-          console.log('Background music play failed:', error);
-        });
-      }, 500);
+      audio.background.play().catch(error => {
+        console.log('Background music play failed:', error);
+      });
     }
     // Start the game loop immediately
     lastTime = null;
@@ -85,9 +81,16 @@ const GAME_CONFIG = {
   speedIncreaseThreshold: 5,
   speedIncreaseAmount: 0.05,
   maxSpeed: 0.6,
-  objectWidth: 120,
-  objectHeight: 50,
-  fontSize: 16
+  objectWidth: 100,
+  objectHeight: 40,
+  fontSize: 16,
+  colors: [
+    '#FF9EAA',
+    '#FFB6C1',
+    '#FFC0CB',
+    '#FFB7C5'
+  ],
+  cakesPerLevel: 10
 };
 
 const WORDS = {
@@ -117,6 +120,7 @@ let gameState = {
   currentWordIndex: 0,
   cakeLayers: 0,
   cakesMade: 0,
+  baseSpeed: GAME_CONFIG.initialFallingSpeed,
   currentSpeed: GAME_CONFIG.initialFallingSpeed,
   currentWord: null,
   objects: [],
@@ -205,10 +209,13 @@ function createFallingObjects() {
   
   gameState.objects = usedTypes.map((type, index) => ({
     x: spacing * (index + 1) - GAME_CONFIG.objectWidth / 2,
-    y: -GAME_CONFIG.objectHeight,
+    y: -GAME_CONFIG.objectHeight, // Start slightly above the screen
     type: type,
     width: GAME_CONFIG.objectWidth,
-    height: GAME_CONFIG.objectHeight
+    height: GAME_CONFIG.objectHeight,
+    color: GAME_CONFIG.colors[index],
+    speed: gameState.currentSpeed,
+    opacity: 1
   }));
 }
 
@@ -222,66 +229,73 @@ function gameUpdate(timestamp) {
 
   if (!gameState.gameActive) return;
 
-  // Create objects if none exist
+  // If no objects exist, create new ones immediately
   if (gameState.objects.length === 0) {
     createFallingObjects();
   }
 
-  // Clear the canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Update and draw objects
+  // Update positions
   for (let i = gameState.objects.length - 1; i >= 0; i--) {
     const obj = gameState.objects[i];
-    
-    // Update position with original speed calculation
     obj.y += (gameState.currentSpeed * 3) * deltaTime;
-
-    // Check if object is out of bounds
+    
+    // If object reaches bottom
     if (obj.y > canvas.height) {
       if (obj.type === gameState.currentWord.type) {
         showMessage("Oh no! The correct answer got away!", "error");
         resetCakeLayers();
         gameState.currentSpeed = GAME_CONFIG.initialFallingSpeed;
       }
+      // Remove the object that reached bottom
       gameState.objects.splice(i, 1);
-      if (gameState.objects.length === 0) {
-        createFallingObjects();
-      }
-      continue;
     }
+  }
 
-    // Draw the object with improved visuals
+  // Draw everything
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw falling objects
+  gameState.objects.forEach(obj => {
     ctx.save();
+    ctx.globalAlpha = obj.opacity;
     
-    // Create gradient with same colors for all options
-    const gradient = ctx.createLinearGradient(obj.x, obj.y, obj.x + obj.width, obj.y + obj.height);
-    gradient.addColorStop(0, '#FFB6C1');
-    gradient.addColorStop(1, '#FFC0CB');
+    // Enhanced shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
 
-    // Draw rounded rectangle with gradient
+    // Create gradient background
+    const gradient = ctx.createLinearGradient(obj.x, obj.y, obj.x, obj.y + obj.height);
+    gradient.addColorStop(0, obj.color);
+    gradient.addColorStop(1, adjustColor(obj.color, -15)); // Slightly darker at bottom
+
+    // Draw main rounded rectangle with gradient
     ctx.beginPath();
     ctx.roundRect(obj.x, obj.y, obj.width, obj.height, 10);
     ctx.fillStyle = gradient;
-    
-    // Add shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 4;
-    
     ctx.fill();
 
-    // Add border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    // Add subtle border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Draw text
-    ctx.fillStyle = "#4A4A4A";
+    // Add top highlight
+    ctx.beginPath();
+    ctx.roundRect(obj.x + 2, obj.y + 2, obj.width - 4, obj.height/4, 8);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fill();
+
+    // Draw text with enhanced styling
+    ctx.fillStyle = "#2D3748";
     ctx.font = `600 ${GAME_CONFIG.fontSize}px Quicksand`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.shadowColor = 'transparent';
+    
+    // Text shadow for better readability
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetY = 1;
     
     const words = obj.type.split(' ');
     if (words.length > 1) {
@@ -291,12 +305,11 @@ function gameUpdate(timestamp) {
     } else {
       ctx.fillText(obj.type, obj.x + obj.width/2, obj.y + obj.height/2);
     }
-    
     ctx.restore();
-  }
+  });
 
   // Continue the game loop
-  requestAnimationFrame(gameUpdate);
+  gameLoop = requestAnimationFrame(gameUpdate);
 }
 
 function drawGrid() {
@@ -412,11 +425,35 @@ function handleCorrectHit() {
     endFrame = 20;
     // Play cake ready sound when all layers are complete
     playSound('cakeReady');
-    completeCake();
-    return;
   }
 
-  if (gameState.cakeLayers < 3) {
+  // Show and play the segment of animation
+  const progressContainer = document.querySelector('.cake-progress-animation');
+  if (!progressContainer) {
+    console.error('Progress animation container not found!');
+    return;
+  }
+  progressContainer.classList.add('show');
+  
+  if (!progressAnimation) {
+    console.error('Progress animation not initialized!');
+    return;
+  }
+  
+  try {
+    progressAnimation.playSegments([startFrame, endFrame], true);
+    
+    if (gameState.cakeLayers < 3) {
+      progressAnimation.goToAndStop(endFrame, true);
+    } else {
+      progressAnimation.playSegments([0, totalFrames], true);
+      completeCake();
+    }
+  } catch (error) {
+    console.error('Error playing animation:', error);
+  }
+
+  if (gameState.cakeLayers < 4) {
     gameState.objects = [];
     nextWord();
   }
@@ -482,10 +519,10 @@ function updateCake() {
   const cake = document.createElement("div");
   cake.className = "cake-layer";
   
-  const colors = ["#8B4513", "#FF69B4", "#FFB6C1"]; // Brown, Pink, Light Pink
+  const colors = ["#8B4513", "#FF69B4", "#FFB6C1", "#FF0000"]; // Brown, Pink, Light Pink, Red
   cake.style.backgroundColor = colors[gameState.cakeLayers - 1];
   
-  const layers = ["Chocolate Base", "Strawberry Cream", "Vanilla Frosting"];
+  const layers = ["Chocolate Base", "Strawberry Cream", "Vanilla Frosting", "Cherry Top"];
   cake.innerText = layers[gameState.cakeLayers - 1];
   
   document.getElementById("cake-progress").appendChild(cake);
@@ -518,9 +555,14 @@ canvas.addEventListener("click", (e) => {
 
 function initGame() {
   console.log('Initializing game...');
-  
+  if (gameLoop) {
+    cancelAnimationFrame(gameLoop);
+  }
+
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
+
+  lastTime = null;
 
   gameState = {
     currentWordIndex: 0,
@@ -537,11 +579,8 @@ function initGame() {
   document.getElementById("cake-count").innerText = gameState.cakesMade;
   
   nextWord();
-  createFallingObjects();
-  showMessage("Touch the matching noun type!", "info");
-  
-  // Start the game loop
-  requestAnimationFrame(gameUpdate);
+  createFallingObjects(); // Create initial falling objects
+  showMessage("Select the matching noun type!", "info");
 }
 
 // Help overlay management
@@ -657,3 +696,13 @@ window.addEventListener('beforeunload', () => {
     sound.currentTime = 0;
   });
 });
+
+// Helper function to adjust color brightness
+function adjustColor(color, amount) {
+  const hex = color.replace('#', '');
+  const num = parseInt(hex, 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+  return '#' + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+}
