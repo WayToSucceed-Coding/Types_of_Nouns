@@ -229,8 +229,8 @@ function gameUpdate(timestamp) {
 
   if (!gameState.gameActive) return;
 
-  // If no objects exist, create new ones immediately
-  if (gameState.objects.length === 0) {
+  // If no objects exist and we have a current word, create new objects
+  if (gameState.objects.length === 0 && gameState.currentWord) {
     createFallingObjects();
   }
 
@@ -408,7 +408,7 @@ function handleCorrectHit() {
   gameState.cakeLayers++;
   showMessage("Great job! Keep going!", "success");
   playSound('correct');
-
+  
   // Calculate animation segments based on total frames (60 frames total)
   const totalFrames = 60;
   
@@ -426,7 +426,7 @@ function handleCorrectHit() {
     // Play cake ready sound when all layers are complete
     playSound('cakeReady');
   }
-
+  
   // Show and play the segment of animation
   const progressContainer = document.querySelector('.cake-progress-animation');
   if (!progressContainer) {
@@ -443,26 +443,59 @@ function handleCorrectHit() {
   try {
     progressAnimation.playSegments([startFrame, endFrame], true);
     
-    if (gameState.cakeLayers < 3) {
-      progressAnimation.goToAndStop(endFrame, true);
-    } else {
+    // Always get a new word on correct answer
+    gameState.objects = [];
+    nextWord();
+    
+    if (gameState.cakeLayers >= 3) {
       progressAnimation.playSegments([0, totalFrames], true);
       completeCake();
+    } else {
+      progressAnimation.goToAndStop(endFrame, true);
     }
   } catch (error) {
     console.error('Error playing animation:', error);
-  }
-
-  if (gameState.cakeLayers < 4) {
-    gameState.objects = [];
-    nextWord();
   }
 }
 
 function handleIncorrectHit() {
   showMessage("Try again! That's not the right type.", "error");
   playSound('wrong');
-  resetCakeLayers();
+  
+  // Reset cake layers count but keep objects falling
+  gameState.cakeLayers = 0;
+  
+  // Reset cake layers and animation
+  const progressContainer = document.querySelector('.cake-progress-animation');
+  if (progressAnimation) {
+    progressAnimation.goToAndStop(0, true);
+    progressContainer.classList.remove('show');
+  }
+  
+  // Add shake animation to cake layers before removing
+  const cakeProgress = document.getElementById("cake-progress");
+  cakeProgress.style.animation = "shake 0.5s ease-in-out";
+  
+  // Remove all cake layers immediately
+  cakeProgress.innerHTML = "";
+  
+  // Reset animation state after shake
+  setTimeout(() => {
+    cakeProgress.style.animation = "";
+    // Make sure animation is completely reset
+    if (progressAnimation) {
+      progressAnimation.goToAndStop(0, true);
+      progressAnimation.destroy();
+      // Reinitialize the animation
+      progressAnimation = lottie.loadAnimation({
+        container: progressContainer,
+        renderer: 'svg',
+        loop: false,
+        autoplay: false,
+        path: 'assets/cake.json'
+      });
+    }
+  }, 500);
 }
 
 function completeCake() {
@@ -493,25 +526,34 @@ function completeCake() {
     const progressContainer = document.querySelector('.cake-progress-animation');
     progressContainer.classList.remove('show');
     gameState.cakeLayers = 0;
-    gameState.objects = [];
-    nextWord();
-    showMessage("Read the new word and match it!", "info");
+    showMessage("Match the word with its noun type!", "info");
   }, 1500);
 }
 
 function resetCakeLayers() {
-  // Reset animation to empty state
+  // Reset animation to empty state and hide it
   const progressContainer = document.querySelector('.cake-progress-animation');
-  progressAnimation.goToAndStop(0, true);
+  if (progressAnimation) {
+    progressAnimation.goToAndStop(0, true);
+    progressContainer.classList.remove('show');
+  }
   
   // Add shake animation to cake layers before removing
   const cakeProgress = document.getElementById("cake-progress");
   cakeProgress.style.animation = "shake 0.5s ease-in-out";
   
+  // Remove all cake layers immediately
+  cakeProgress.innerHTML = "";
+  
+  // Reset animation state after shake
   setTimeout(() => {
-    gameState.cakeLayers = 0;
-    cakeProgress.innerHTML = "";
     cakeProgress.style.animation = "";
+    // Ensure game state is reset
+    gameState.cakeLayers = 0;
+    // Make sure animation is at initial state
+    if (progressAnimation) {
+      progressAnimation.goToAndStop(0, true);
+    }
   }, 500);
 }
 
