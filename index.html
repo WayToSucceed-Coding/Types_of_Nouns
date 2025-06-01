@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Noun Town Bakery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Righteous&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.9.6/lottie.min.js"></script>
+</head>
+<body>
+  <!-- Welcome Screen -->
+  <div id="welcome-screen" class="screen active">
+    <div class="welcome-content">
+      <div class="welcome-header">
+        <h1>Noun Town Bakery</h1>
+        <p class="tagline">Let's bake delicious cakes by choosing correct noun types of the word!</p>
+      </div>
+
+      <div class="instructions-container">
+        <h2>How to Play</h2>
+        <div class="instructions-box">
+          <div class="instruction-step">
+            <div class="cake-number">1</div>
+            <p>Match the word with its correct noun type</p>
+          </div>
+          <div class="instruction-step">
+            <div class="cake-number">2</div>
+            <p>Build a cake layer by layer - each correct match adds a layer</p>
+          </div>
+          <div class="instruction-step">
+            <div class="cake-number">3</div>
+            <p>Complete 4 layers to finish your cake</p>
+          </div>
+          <div class="instruction-step">
+            <div class="cake-number">4</div>
+            <p>Click the sound icon to hear the word pronunciation</p>
+          </div>
+        </div>
+      </div>
+
+      <button id="start-btn" class="primary-button">
+        <span class="button-text">Start Baking!</span>
+        <div class="button-icons">
+          <div class="cake-number"></div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="screen">
+    <div class="loading-content">
+      <div class="loading-animation"></div>
+      <div class="loading-text">Preheating the oven...</div>
+    </div>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="game-screen" class="screen">
+    <div class="game-container">
+      <div class="game-header">
+        <div class="score-section">
+          <div class="score-item">
+            <span class="score-label">Cakes</span>
+            <span id="cake-count" class="score-value">0</span>
+          </div>
+        </div>
+
+        <div class="word-section">
+          <div class="word-display">
+            <span class="current-word-label">Word:</span>
+            <span id="current-word">Sarah</span>
+            <button onclick="speakWord()" class="speak-btn" aria-label="Hear the word">
+              <i class="fas fa-volume-up"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="control-buttons">
+          <button class="sound-btn" onclick="toggleMute()" aria-label="Toggle sound">
+            <i class="fas fa-volume-up" id="sound-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="game-content">
+        <div class="game-left">
+          <div id="game-area">
+            <canvas id="gameCanvas"></canvas>
+            <div id="help-overlay" class="help-overlay hidden">
+              <div class="help-content">
+                <h3>How to Play</h3>
+                <ul>
+                  <li>Touch the correct noun type</li>
+                  <li>Match 3 times to complete a cake</li>
+                  <li>Click the 🔊 button to hear the word</li>
+                </ul>
+                <button onclick="closeHelp()" class="close-help">Got it!</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-right">
+          <div class="cake-section">
+            <h3>Cake Progress</h3>
+            <div class="cake-progress-animation"></div>
+            <div class="cake-progress" id="cake-progress">
+              <!-- Cake layers will be added here -->
+            </div>
+            <p id="message" class="game-message"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Elements -->
+  <audio id="bgMusic" loop>
+    <source src="assets/sounds/bg_music.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="correctSound">
+    <source src="assets/sounds/correct_choice.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="wrongSound">
+    <source src="assets/sounds/wrong_choice.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="cakeReadySound">
+    <source src="assets/sounds/cake_ready.mp3" type="audio/mpeg">
+  </audio>
+
+  <script src="script.js"></script>
+</body>
+</html>
